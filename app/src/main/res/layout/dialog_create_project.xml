@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/edit_project_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="工程名称"
+        android:inputType="text"
+        android:maxLines="1" />
+
+    <EditText
+        android:id="@+id/edit_project_description"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="工程描述（可选）"
+        android:inputType="textMultiLine"
+        android:minLines="2"
+        android:maxLines="5"
+        android:layout_marginTop="16dp" />
+
+</LinearLayout>
