@@ -1,10 +1,14 @@
 package cn.zjl.datacollector.util;
 
 import android.content.Context;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
 import android.os.Environment;
-import android.util.Log;
+
+import androidx.core.content.FileProvider;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -15,91 +19,117 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-/**
- * 数据导出工具类
- */
-public class ExportUtils {
-    private static final String TAG = "ExportUtils";
-    private static final String EXPORT_DIR = "DataCollector/Export";
-    
-    /**
-     * 导出工程数据库到外部存储
-     */
+public final class ExportUtils {
+
+    private ExportUtils() {
+    }
+
     public interface ExportCallback {
         void onSuccess(File exportedFile);
+
         void onError(String error);
     }
-    
+
     public static void exportDatabase(Context context, String databasePath, ExportCallback callback) {
         new Thread(() -> {
             try {
-                // 创建导出目录
-                File exportDir = new File(Environment.getExternalStorageDirectory(), EXPORT_DIR);
-                if (!exportDir.exists()) {
-                    exportDir.mkdirs();
+                File documentsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+                if (documentsDir == null) {
+                    throw new IOException("外部文档目录不可用");
                 }
-                
-                // 生成文件名
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault());
-                String timestamp = sdf.format(new Date());
+                File exportDir = new File(documentsDir, "Export");
+                if (!exportDir.exists() && !exportDir.mkdirs()) {
+                    throw new IOException("无法创建导出目录");
+                }
+
+                String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
                 String dbName = new File(databasePath).getName();
-                String exportFileName = dbName.replace(".db", "") + "_" + timestamp + ".db";
-                
-                File exportFile = new File(exportDir, exportFileName);
-                
-                // 复制数据库文件
-                copyDatabaseFile(databasePath, exportFile.getAbsolutePath());
-                
-                Log.i(TAG, "Database exported to: " + exportFile.getAbsolutePath());
-                
-                if (callback != null) {
-                    callback.onSuccess(exportFile);
-                }
-                
+                String exportName = dbName.replace(".sqlite", "").replace(".db", "") + "_" + timestamp + ".sqlite";
+                File exportFile = new File(exportDir, exportName);
+                copy(databasePath, exportFile.getAbsolutePath());
+                callback.onSuccess(exportFile);
             } catch (Exception e) {
-                Log.e(TAG, "Export failed", e);
-                if (callback != null) {
-                    callback.onError("导出失败：" + e.getMessage());
-                }
+                callback.onError("导出失败: " + e.getMessage());
             }
         }).start();
     }
-    
-    /**
-     * 复制数据库文件
-     */
-    private static void copyDatabaseFile(String sourcePath, String destPath) throws IOException {
-        FileInputStream fis = new FileInputStream(sourcePath);
-        FileOutputStream fos = new FileOutputStream(destPath);
-        
-        FileChannel srcChannel = fis.getChannel();
-        FileChannel destChannel = fos.getChannel();
-        
-        destChannel.transferFrom(srcChannel, 0, srcChannel.size());
-        
-        srcChannel.close();
-        destChannel.close();
-        fis.close();
-        fos.close();
+
+    public static boolean shareFile(Context context, File file) {
+        if (context == null || file == null || !file.exists()) {
+            return false;
+        }
+
+        Uri uri = getContentUri(context, file);
+        if (uri == null) {
+            return false;
+        }
+
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("application/octet-stream");
+        intent.putExtra(Intent.EXTRA_STREAM, uri);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        return startActivitySafely(context, Intent.createChooser(intent, context.getString(cn.zjl.datacollector.R.string.action_share_file)));
     }
-    
-    /**
-     * 读取数据库中的数据（用于查询或验证）
-     */
-    public static Cursor queryDatabase(String databasePath, String tableName, String[] columns, 
-                                       String selection, String[] selectionArgs, 
+
+    public static boolean openContainingDirectory(Context context, File file) {
+        if (context == null || file == null) {
+            return false;
+        }
+
+        File directory = file.isDirectory() ? file : file.getParentFile();
+        if (directory == null || !directory.exists()) {
+            return false;
+        }
+
+        Uri directoryUri = getContentUri(context, directory);
+        if (directoryUri == null) {
+            return false;
+        }
+
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setDataAndType(directoryUri, "*/*");
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        intent.putExtra(Intent.EXTRA_TITLE, directory.getName());
+        return startActivitySafely(context, intent);
+    }
+
+    public static Cursor queryDatabase(String databasePath,
+                                       String tableName,
+                                       String[] columns,
+                                       String selection,
+                                       String[] selectionArgs,
                                        String orderBy) {
+        SQLiteDatabase db = SQLiteDatabase.openDatabase(databasePath, null, SQLiteDatabase.OPEN_READONLY);
+        return db.query(tableName, columns, selection, selectionArgs, null, null, orderBy);
+    }
+
+    private static void copy(String sourcePath, String destPath) throws IOException {
+        try (FileInputStream inputStream = new FileInputStream(sourcePath);
+             FileOutputStream outputStream = new FileOutputStream(destPath);
+             FileChannel srcChannel = inputStream.getChannel();
+             FileChannel dstChannel = outputStream.getChannel()) {
+            dstChannel.transferFrom(srcChannel, 0, srcChannel.size());
+        }
+    }
+
+    private static Uri getContentUri(Context context, File file) {
         try {
-            SQLiteDatabase db = SQLiteDatabase.openDatabase(databasePath, null, 
-                SQLiteDatabase.OPEN_READONLY);
-            
-            Cursor cursor = db.query(tableName, columns, selection, selectionArgs, 
-                null, null, orderBy);
-            
-            return cursor;
-        } catch (Exception e) {
-            Log.e(TAG, "Query failed", e);
+            return FileProvider.getUriForFile(
+                    context,
+                    context.getPackageName() + ".fileprovider",
+                    file);
+        } catch (IllegalArgumentException ignore) {
             return null;
+        }
+    }
+
+    private static boolean startActivitySafely(Context context, Intent intent) {
+        try {
+            context.startActivity(intent);
+            return true;
+        } catch (ActivityNotFoundException ignore) {
+            return false;
         }
     }
 }

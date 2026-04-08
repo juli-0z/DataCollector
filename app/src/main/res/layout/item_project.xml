@@ -1,30 +1,72 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:background="?android:attr/selectableItemBackground">
+    android:layout_marginBottom="@dimen/space_md"
+    app:cardBackgroundColor="@color/surface_card">
 
-    <TextView
-        android:id="@+id/text_project_name"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="?android:attr/textColorPrimary"
-        android:layout_marginBottom="8dp"
-        tools:text="工程名称示例"/>
+        android:orientation="vertical"
+        android:padding="@dimen/space_lg">
 
-    <TextView
-        android:id="@+id/text_project_info"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textSize="14sp"
-        android:textColor="?android:attr/textColorSecondary"
-        android:maxLines="3"
-        android:ellipsize="end"
-        tools:text="这是工程描述信息\n更新时间：2026-03-11 16:51"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-</LinearLayout>
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/text_project_name"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_primary"
+                    android:textSize="19sp"
+                    android:textStyle="bold"
+                    tools:text="JJK008 外业工程" />
+
+                <TextView
+                    android:id="@+id/text_project_date"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/space_xs"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    tools:text="更新于 2026-03-28 20:16" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_chip_soft"
+                android:paddingStart="@dimen/space_sm"
+                android:paddingTop="@dimen/space_xs"
+                android:paddingEnd="@dimen/space_sm"
+                android:paddingBottom="@dimen/space_xs"
+                android:text="SQLite"
+                android:textColor="@color/blue_primary"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/text_project_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_md"
+            android:lineSpacingExtra="2dp"
+            android:maxLines="3"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            tools:text="支持离线采集、测点回放、后台同步和整库导出。" />
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

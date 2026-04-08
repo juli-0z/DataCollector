@@ -44,6 +44,8 @@ dependencies {
     implementation(libs.constraintlayout)
     implementation(libs.navigation.fragment)
     implementation(libs.navigation.ui)
+    implementation("androidx.lifecycle:lifecycle-viewmodel:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-livedata:2.8.7")
     
     // SwipeRefreshLayout
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
@@ -62,8 +64,14 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
     
+    // Okio - 现代 IO 库
+    implementation("com.squareup.okio:okio:3.9.0")
+    
     // Gson
     implementation(libs.gson)
+    
+    // Google Play Services Location
+    implementation("com.google.android.gms:play-services-location:21.3.0")
     
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)

@@ -3,24 +3,34 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="@dimen/space_md">
 
-    <EditText
-        android:id="@+id/edit_project_name"
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="工程名称"
-        android:inputType="text"
-        android:maxLines="1" />
+        android:hint="@string/hint_name">
 
-    <EditText
-        android:id="@+id/edit_project_description"
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/edit_project_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text"
+            android:maxLines="1" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="工程描述（可选）"
-        android:inputType="textMultiLine"
-        android:minLines="2"
-        android:maxLines="5"
-        android:layout_marginTop="16dp" />
+        android:layout_marginTop="@dimen/space_md"
+        android:hint="@string/hint_description_optional">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/edit_project_description"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="top|start"
+            android:inputType="textMultiLine"
+            android:minLines="3" />
+    </com.google.android.material.textfield.TextInputLayout>
 
 </LinearLayout>

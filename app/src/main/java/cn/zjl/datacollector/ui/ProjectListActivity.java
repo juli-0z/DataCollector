@@ -1,21 +1,29 @@
 package cn.zjl.datacollector.ui;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -26,342 +34,367 @@ import cn.zjl.datacollector.R;
 import cn.zjl.datacollector.data.entity.ProjectEntity;
 import cn.zjl.datacollector.data.repository.ProjectRepository;
 import cn.zjl.datacollector.databinding.ActivityProjectListBinding;
-import cn.zjl.datacollector.ui.collection.CollectionActivity;
+import cn.zjl.datacollector.sync.DataSyncWorker;
+import cn.zjl.datacollector.ui.collection.CollectionAndPlaybackActivity;
+import cn.zjl.datacollector.util.AppSettings;
+import cn.zjl.datacollector.util.ExportUtils;
 
-/**
- * 工程管理界面
- */
 public class ProjectListActivity extends AppCompatActivity {
-    
-    private static final String TAG = "ProjectListActivity";
-    
-    private ActivityProjectListBinding binding;
-    private ProjectAdapter adapter;
-    private List<ProjectEntity> projectList;
-    private ProjectRepository projectRepository;
-    private boolean isLoading = false;
-    private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
 
+    private ActivityProjectListBinding binding;
+    private final List<ProjectEntity> projectList = new ArrayList<>();
+    private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+    private ProjectRepository projectRepository;
+    private ProjectAdapter adapter;
+
+    private final ActivityResultLauncher<String[]> importLauncher =
+            registerForActivityResult(new ActivityResultContracts.OpenDocument(), this::handleImportResult);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         binding = ActivityProjectListBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-        
-        setSupportActionBar(binding.toolbar);
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-        }
-        
-        initViews();
-        initRepository();
-        loadProjects();
-    }
-    
-    private void initViews() {
-        projectList = new ArrayList<>();
-        
-        // 配置 RecyclerView
-        binding.recyclerProjects.setLayoutManager(new LinearLayoutManager(this));
-        adapter = new ProjectAdapter();
-        binding.recyclerProjects.setAdapter(adapter);
-        
-        // 配置 SwipeRefreshLayout
-        binding.swipeRefresh.setOnRefreshListener(this::loadProjects);
-        binding.swipeRefresh.setColorSchemeResources(
-            R.color.purple_500,
-            R.color.purple_700,
-            R.color.teal_200
-        );
-        
-        // 添加工程按钮
-        binding.fabAddProject.setOnClickListener(v -> showCreateProjectDialog());
 
-    }
-    
-    private void initRepository() {
+        setSupportActionBar(binding.toolbar);
+        applyToolbarInsets();
         projectRepository = new ProjectRepository(this);
+        adapter = new ProjectAdapter();
+
+        binding.recyclerProjects.setLayoutManager(new LinearLayoutManager(this));
+        binding.recyclerProjects.setAdapter(adapter);
+        binding.swipeRefresh.setOnRefreshListener(this::loadProjects);
+        binding.fabAddProject.setOnClickListener(v -> showCreateOrImportDialog());
+
+        DataSyncWorker.schedulePeriodicSync(this);
+        initializeProjects();
     }
-    
-    private void loadProjects() {
-        if (isLoading) {
-            Log.w(TAG, "正在加载数据，忽略重复请求");
-            stopRefreshing();
-            return;
-        }
-        
-        isLoading = true;
-        long startTime = System.currentTimeMillis();
-        Log.d(TAG, "=== 开始加载数据 ===");
-        
-        projectRepository.getAllProjects(projects -> {
-            long endTime = System.currentTimeMillis();
-            long duration = endTime - startTime;
-            Log.d(TAG, "=== 数据加载完成，耗时：" + duration + "ms ===");
-            
-            isLoading = false;
-            stopRefreshing();
-            
-            // 统一在 updateProjectList 中处理空数据
-            updateProjectList(projects);
-            Log.d(TAG, "加载了 " + (projects != null ? projects.size() : 0) + " 个工程");
+
+    private void applyToolbarInsets() {
+        final int baseToolbarHeight = (int) (60f * getResources().getDisplayMetrics().density);
+        final int baseToolbarPaddingTop = binding.toolbar.getPaddingTop();
+        final int baseAppBarPaddingTop = binding.appBarLayout.getPaddingTop();
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.appBarLayout, (view, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.statusBars());
+            int topInset = systemBars.top;
+
+            ViewGroup.LayoutParams layoutParams = binding.toolbar.getLayoutParams();
+            layoutParams.height = baseToolbarHeight + topInset;
+            binding.toolbar.setLayoutParams(layoutParams);
+            binding.toolbar.setPadding(
+                    binding.toolbar.getPaddingLeft(),
+                    baseToolbarPaddingTop + topInset,
+                    binding.toolbar.getPaddingRight(),
+                    binding.toolbar.getPaddingBottom());
+            binding.appBarLayout.setPadding(
+                    binding.appBarLayout.getPaddingLeft(),
+                    baseAppBarPaddingTop,
+                    binding.appBarLayout.getPaddingRight(),
+                    binding.appBarLayout.getPaddingBottom());
+            return insets;
         });
+        ViewCompat.requestApplyInsets(binding.appBarLayout);
     }
-    
-    /**
-     * 停止刷新动画
-     */
-    private void stopRefreshing() {
-        if (binding.swipeRefresh.isRefreshing()) {
-            binding.swipeRefresh.setRefreshing(false);
-        }
-    }
-    
-    /**
-     * 更新工程列表数据（用于下拉刷新等全量加载场景）
-     */
-    private void updateProjectList(List<ProjectEntity> projects) {
-        int oldSize = projectList.size();
-        projectList.clear();
-        
-        // 处理空数据或 null 情况
-        if (projects == null || projects.isEmpty()) {
-            Log.i(TAG, "没有找到工程数据");
-            // 如果原来有数据，通知删除
-            if (oldSize > 0) {
-                adapter.notifyItemRangeRemoved(0, oldSize);
+
+    private void initializeProjects() {
+        binding.swipeRefresh.setRefreshing(true);
+        projectRepository.ensureBundledProjectsInstalled(new ProjectRepository.ActionCallback() {
+            @Override
+            public void onSuccess() {
+                loadProjects();
             }
-            updateEmptyView();
-            return;
-        }
-        
-        // 添加新数据
-        projectList.addAll(projects);
-        int newSize = projectList.size();
-        
-        // 根据数据变化选择最优通知方式
-        if (oldSize == 0) {
-            // 从空到非空，全部插入
-            adapter.notifyItemRangeInserted(0, newSize);
-        } else if (oldSize == newSize) {
-            // 数量不变，全部更新
-            adapter.notifyItemRangeChanged(0, newSize);
-        } else if (newSize > oldSize) {
-            // 数据增加，插入新增的部分
-            adapter.notifyItemRangeInserted(oldSize, newSize - oldSize);
-        } else {
-            // 数据减少，删除多余的部分
-            adapter.notifyItemRangeRemoved(newSize, oldSize - newSize);
-        }
-        
-        updateEmptyView();
-    }
-    
-    private void updateEmptyView() {
-        runOnUiThread(() -> {
-            if (projectList.isEmpty()) {
-                binding.emptyView.setVisibility(View.VISIBLE);
-                binding.recyclerProjects.setVisibility(View.GONE);
-            } else {
-                binding.emptyView.setVisibility(View.GONE);
-                binding.recyclerProjects.setVisibility(View.VISIBLE);
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    binding.swipeRefresh.setRefreshing(false);
+                    Toast.makeText(ProjectListActivity.this, error, Toast.LENGTH_LONG).show();
+                    loadProjects();
+                });
             }
         });
     }
-    
-    /**
-     * 显示创建工程对话框
-     */
+
+    private void showCreateOrImportDialog() {
+        String[] items = new String[]{
+                getString(R.string.action_new_project),
+                getString(R.string.action_import_database)
+        };
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.action_project_operation)
+                .setItems(items, (dialog, which) -> {
+                    if (which == 0) {
+                        showCreateProjectDialog();
+                    } else {
+                        importLauncher.launch(new String[]{
+                                "application/octet-stream",
+                                "application/x-sqlite3",
+                                "*/*"
+                        });
+                    }
+                })
+                .show();
+    }
+
+    private void showSettingsDialog() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_tcp_config, null);
+        EditText editIp = dialogView.findViewById(R.id.edit_tcp_ip);
+        EditText editPort = dialogView.findViewById(R.id.edit_tcp_port);
+        editIp.setText(AppSettings.getTcpIp(this));
+        editPort.setText(String.valueOf(AppSettings.getTcpPort(this)));
+
+        EditText editUrl = new EditText(this);
+        editUrl.setHint("https://example.com/");
+        editUrl.setText(AppSettings.getSyncBaseUrl(this));
+        editUrl.setPadding(48, 24, 48, 0);
+
+        ViewGroup container = (ViewGroup) dialogView;
+        container.addView(editUrl);
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.dialog_sync_settings)
+                .setView(dialogView)
+                .setPositiveButton(R.string.action_save, (dialog, which) -> {
+                    int port;
+                    try {
+                        port = Integer.parseInt(editPort.getText().toString().trim());
+                    } catch (NumberFormatException e) {
+                        port = 8080;
+                    }
+                    AppSettings.saveTcp(this, editIp.getText().toString().trim(), port);
+                    AppSettings.setSyncBaseUrl(this, editUrl.getText().toString().trim());
+                    Toast.makeText(this, R.string.toast_settings_saved, Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(R.string.action_cancel, null)
+                .show();
+    }
+
     private void showCreateProjectDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_create_project, null);
         EditText editName = dialogView.findViewById(R.id.edit_project_name);
         EditText editDescription = dialogView.findViewById(R.id.edit_project_description);
-        
         new AlertDialog.Builder(this)
-            .setTitle("新建工程")
-            .setView(dialogView)
-            .setPositiveButton("创建", (dialog, which) -> {
-                String name = editName.getText().toString().trim();
-                String description = editDescription.getText().toString().trim();
-                
-                if (name.isEmpty()) {
-                    Toast.makeText(this, "请输入工程名称", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                
-                createProject(name, description);
-            })
-            .setNegativeButton("取消", null)
-            .show();
+                .setTitle(R.string.dialog_create_project)
+                .setView(dialogView)
+                .setPositiveButton(R.string.action_create, (dialog, which) -> {
+                    String name = editName.getText().toString().trim();
+                    if (name.isEmpty()) {
+                        Toast.makeText(this, R.string.toast_input_project_name, Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    projectRepository.createProject(name, editDescription.getText().toString().trim(), new ProjectRepository.CreateProjectCallback() {
+                        @Override
+                        public void onSuccess(ProjectEntity project) {
+                            runOnUiThread(() -> {
+                                Toast.makeText(ProjectListActivity.this, R.string.toast_project_created, Toast.LENGTH_SHORT).show();
+                                loadProjects();
+                                openProject(project, CollectionAndPlaybackActivity.COLLECTION_MODE);
+                            });
+                        }
+
+                        @Override
+                        public void onError(String error) {
+                            runOnUiThread(() -> Toast.makeText(ProjectListActivity.this, error, Toast.LENGTH_SHORT).show());
+                        }
+                    });
+                })
+                .setNegativeButton(R.string.action_cancel, null)
+                .show();
     }
-    
-    /**
-     * 创建工程
-     */
-    private void createProject(String name, String description) {
-        projectRepository.createProject(name, description, new ProjectRepository.CreateProjectCallback() {
+
+    private void handleImportResult(Uri uri) {
+        if (uri == null) {
+            return;
+        }
+        projectRepository.importProject(uri, null, new ProjectRepository.CreateProjectCallback() {
             @Override
             public void onSuccess(ProjectEntity project) {
-                Log.d(TAG, "工程创建成功：" + project.name);
-                
-                // 在主线程更新 UI（RecyclerView 操作必须在主线程）
                 runOnUiThread(() -> {
-                    // 插入到列表顶部（最新工程在最前面）
-                    projectList.add(0, project);
-                    adapter.notifyItemInserted(0);
-                    
-                    // 如果是第一个项目，更新空视图
-                    if (projectList.size() == 1) {
-                        updateEmptyView();
-                    }
-                    
-                    Toast.makeText(ProjectListActivity.this, "工程创建成功", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(ProjectListActivity.this, R.string.toast_database_imported, Toast.LENGTH_SHORT).show();
+                    loadProjects();
+                    openProject(project, CollectionAndPlaybackActivity.PLAYBACK_MODE);
                 });
             }
-            
+
             @Override
             public void onError(String error) {
-                Log.e(TAG, "工程创建失败：" + error);
-                runOnUiThread(() ->
-                        Toast.makeText(ProjectListActivity.this, error, Toast.LENGTH_SHORT).show()
-                );
+                runOnUiThread(() -> Toast.makeText(ProjectListActivity.this, error, Toast.LENGTH_LONG).show());
             }
         });
     }
-    
-    /**
-     * 打开工程
-     */
-    private void openProject(ProjectEntity project) {
-        Log.d(TAG, "打开工程：" + project.name);
-        Intent intent = new Intent(this, CollectionActivity.class);
-        intent.putExtra("project_id", project.id);
-        intent.putExtra("project_name", project.name);
+
+    private void loadProjects() {
+        projectRepository.getAllProjects(projects -> runOnUiThread(() -> {
+            binding.swipeRefresh.setRefreshing(false);
+            projectList.clear();
+            if (projects != null) {
+                projectList.addAll(projects);
+            }
+            adapter.notifyDataSetChanged();
+        }));
+    }
+
+    private void openProject(ProjectEntity project, int mode) {
+        Intent intent = new Intent(this, CollectionAndPlaybackActivity.class);
+        intent.putExtra("database_name", project.databaseName);
+        intent.putExtra("mode", mode);
         startActivity(intent);
     }
-    
-    /**
-     * 显示删除确认对话框
-     */
-    private void showDeleteDialog(ProjectEntity project) {
+
+    private void showProjectMenu(ProjectEntity project) {
+        String[] items = new String[]{
+                getString(R.string.menu_enter_collection),
+                getString(R.string.menu_playback),
+                getString(R.string.menu_sync_now),
+                getString(R.string.menu_export_database),
+                getString(R.string.menu_delete_project)
+        };
         new AlertDialog.Builder(this)
-            .setTitle("确认删除")
-            .setMessage("确定要删除工程 \"" + project.name + "\" 吗？此操作不可恢复！")
-            .setPositiveButton("删除", (dialog, which) -> {
-                // 获取项目位置并立即从列表移除（UI 快速响应）
-                int position = projectList.indexOf(project);
-                if (position != -1) {
-                    projectList.remove(position);
-                    adapter.notifyItemRemoved(position);
-                    
-                    // 如果删除后为空，更新空视图
-                    if (projectList.isEmpty()) {
-                        updateEmptyView();
+                .setTitle(project.name)
+                .setItems(items, (dialog, which) -> {
+                    switch (which) {
+                        case 0:
+                            openProject(project, CollectionAndPlaybackActivity.COLLECTION_MODE);
+                            break;
+                        case 1:
+                            openProject(project, CollectionAndPlaybackActivity.PLAYBACK_MODE);
+                            break;
+                        case 2:
+                            DataSyncWorker.scheduleProjectSync(this, project.databaseName);
+                            Toast.makeText(this, R.string.toast_sync_submitted, Toast.LENGTH_SHORT).show();
+                            break;
+                        case 3:
+                            exportProject(project);
+                            break;
+                        case 4:
+                            confirmDelete(project);
+                            break;
+                        default:
+                            break;
                     }
-                }
-                
-                // 后台真正删除数据
-                projectRepository.deleteProject(project, new ProjectRepository.DeleteProjectCallback() {
+                })
+                .show();
+    }
+
+    private void exportProject(ProjectEntity project) {
+        if (project.databasePath == null) {
+            Toast.makeText(this, R.string.toast_missing_project_database_path, Toast.LENGTH_SHORT).show();
+            return;
+        }
+        ExportUtils.exportDatabase(this, project.databasePath, new ExportUtils.ExportCallback() {
+            @Override
+            public void onSuccess(File exportedFile) {
+                runOnUiThread(() -> new AlertDialog.Builder(ProjectListActivity.this)
+                        .setTitle(R.string.dialog_export_success)
+                        .setMessage(exportedFile.getAbsolutePath())
+                        .setNegativeButton(R.string.action_open_export_folder, (dialog, which) -> {
+                            if (!ExportUtils.openContainingDirectory(ProjectListActivity.this, exportedFile)) {
+                                Toast.makeText(
+                                        ProjectListActivity.this,
+                                        getString(R.string.toast_open_export_folder_failed, exportedFile.getParent()),
+                                        Toast.LENGTH_LONG).show();
+                            }
+                        })
+                        .setNeutralButton(R.string.action_share_file, (dialog, which) -> {
+                            if (!ExportUtils.shareFile(ProjectListActivity.this, exportedFile)) {
+                                Toast.makeText(ProjectListActivity.this, R.string.toast_share_file_failed, Toast.LENGTH_LONG).show();
+                            }
+                        })
+                        .setPositiveButton(R.string.action_confirm, null)
+                        .show());
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> Toast.makeText(ProjectListActivity.this, error, Toast.LENGTH_LONG).show());
+            }
+        });
+    }
+
+    private void confirmDelete(ProjectEntity project) {
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.dialog_delete_project)
+                .setMessage(getString(R.string.dialog_delete_project_message, project.name))
+                .setPositiveButton(R.string.action_delete, (dialog, which) -> projectRepository.deleteProject(project, new ProjectRepository.DeleteProjectCallback() {
                     @Override
                     public void onSuccess() {
-                        Log.d(TAG, "工程删除成功：" + project.name);
-                        runOnUiThread(() ->
-                                Toast.makeText(ProjectListActivity.this, "工程已删除", Toast.LENGTH_SHORT).show()
-                        );
-                        // 注意：不需要 loadProjects()，因为已经局部刷新了
-                    }
-                    
-                    @Override
-                    public void onError(String error) {
-                        Log.e(TAG, "工程删除失败：" + error);
                         runOnUiThread(() -> {
-                            Toast.makeText(ProjectListActivity.this, error, Toast.LENGTH_SHORT).show();
-                            
-                            // 失败时恢复列表项
-                            if (position != -1) {
-                                projectList.add(position, project);
-                                adapter.notifyItemInserted(position);
-                            }
+                            Toast.makeText(ProjectListActivity.this, R.string.toast_project_deleted, Toast.LENGTH_SHORT).show();
+                            loadProjects();
                         });
                     }
-                });
-            })
-            .setNegativeButton("取消", null)
-            .show();
-    }
-    
-    /**
-     * 工程列表适配器 - 使用 RecyclerView.ViewHolder 模式
-     */
-    private class ProjectAdapter extends RecyclerView.Adapter<ProjectAdapter.ProjectViewHolder> {
-        
-        class ProjectViewHolder extends RecyclerView.ViewHolder {
-            TextView textName;
-            TextView textInfo;
-            
-            public ProjectViewHolder(@NonNull View itemView) {
-                super(itemView);
-                textName = itemView.findViewById(R.id.text_project_name);
-                textInfo = itemView.findViewById(R.id.text_project_info);
-                
-                // 设置点击监听
-                itemView.setOnClickListener(v -> {
-                    int position = getBindingAdapterPosition();
-                    if (position != RecyclerView.NO_POSITION && position < projectList.size()) {
-                        ProjectEntity project = projectList.get(position);
-                        openProject(project);
+
+                    @Override
+                    public void onError(String error) {
+                        runOnUiThread(() -> Toast.makeText(ProjectListActivity.this, error, Toast.LENGTH_SHORT).show());
                     }
-                });
-                
-                // 设置长按监听
-                itemView.setOnLongClickListener(v -> {
-                    int position = getBindingAdapterPosition();
-                    if (position != RecyclerView.NO_POSITION && position < projectList.size()) {
-                        ProjectEntity project = projectList.get(position);
-                        showDeleteDialog(project);
-                        return true;
-                    }
-                    return false;
-                });
-            }
-        }
-        
-        @NonNull
-        @Override
-        public ProjectViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(ProjectListActivity.this)
-                .inflate(R.layout.item_project, parent, false);
-            return new ProjectViewHolder(view);
-        }
-        
-        @Override
-        public void onBindViewHolder(@NonNull ProjectViewHolder holder, int position) {
-            ProjectEntity project = projectList.get(position);
-            holder.textName.setText(project.name);
-            
-            // 格式化日期
-            String dateStr = sdf.format(new Date(project.updatedAt));
-            
-            String info = (project.description != null ? project.description : "") + "\n更新时间：" + dateStr;
-            holder.textInfo.setText(info);
-        }
-        
-        @Override
-        public int getItemCount() {
-            return projectList.size();
-        }
+                }))
+                .setNegativeButton(R.string.action_cancel, null)
+                .show();
     }
-    
+
     @Override
     protected void onResume() {
         super.onResume();
         loadProjects();
     }
-    
+
     @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        binding = null;
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_project_list, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.action_sync_settings) {
+            showSettingsDialog();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private class ProjectAdapter extends RecyclerView.Adapter<ProjectAdapter.ProjectViewHolder> {
+
+        @NonNull
+        @Override
+        public ProjectViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_project, parent, false);
+            return new ProjectViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull ProjectViewHolder holder, int position) {
+            ProjectEntity project = projectList.get(position);
+            holder.name.setText(project.name);
+            holder.info.setText(project.note == null || project.note.isEmpty()
+                    ? getString(R.string.item_project_default_info)
+                    : project.note);
+            holder.date.setText(getString(R.string.item_project_updated_at, sdf.format(new Date(project.updatedAt))));
+            holder.itemView.setOnClickListener(v -> openProject(project, CollectionAndPlaybackActivity.COLLECTION_MODE));
+            holder.itemView.setOnLongClickListener(v -> {
+                showProjectMenu(project);
+                return true;
+            });
+        }
+
+        @Override
+        public int getItemCount() {
+            return projectList.size();
+        }
+
+        class ProjectViewHolder extends RecyclerView.ViewHolder {
+            TextView name;
+            TextView info;
+            TextView date;
+
+            ProjectViewHolder(@NonNull View itemView) {
+                super(itemView);
+                name = itemView.findViewById(R.id.text_project_name);
+                info = itemView.findViewById(R.id.text_project_info);
+                date = itemView.findViewById(R.id.text_project_date);
+            }
+        }
     }
 }

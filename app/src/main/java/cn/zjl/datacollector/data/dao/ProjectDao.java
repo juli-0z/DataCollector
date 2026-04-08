@@ -3,6 +3,7 @@ package cn.zjl.datacollector.data.dao;
 import androidx.room.Dao;
 import androidx.room.Delete;
 import androidx.room.Insert;
+import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 import androidx.room.Update;
 
@@ -10,32 +11,33 @@ import java.util.List;
 
 import cn.zjl.datacollector.data.entity.ProjectEntity;
 
-/**
- * 工程数据访问对象
- */
 @Dao
 public interface ProjectDao {
-    @Insert
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     long insert(ProjectEntity project);
-    
+
     @Update
     void update(ProjectEntity project);
-    
+
     @Delete
     void delete(ProjectEntity project);
-    
-    @Query("SELECT * FROM projects ORDER BY updatedAt DESC")
+
+    @Query("SELECT * FROM data_project ORDER BY updatedAt DESC")
     List<ProjectEntity> getAllProjects();
-    
-    @Query("SELECT * FROM projects WHERE id = :id")
+
+    @Query("SELECT * FROM data_project WHERE id = :id")
     ProjectEntity getProjectById(long id);
-    
-    @Query("SELECT * FROM projects WHERE name = :name LIMIT 1")
+
+    @Query("SELECT * FROM data_project WHERE name = :name LIMIT 1")
     ProjectEntity getProjectByName(String name);
-    
-    @Query("UPDATE projects SET isSynced = :synced WHERE id = :projectId")
-    void updateSyncStatus(long projectId, boolean synced);
-    
-    @Query("SELECT * FROM projects WHERE isSynced = 0")
-    List<ProjectEntity> getUnsyncedProjects();
+
+    @Query("SELECT * FROM data_project WHERE databaseName = :databaseName LIMIT 1")
+    ProjectEntity getProjectByDatabaseName(String databaseName);
+
+    @Query("SELECT * FROM data_project ORDER BY id ASC LIMIT 1")
+    ProjectEntity getFirstProject();
+
+    @Query("DELETE FROM data_project")
+    void deleteAll();
 }

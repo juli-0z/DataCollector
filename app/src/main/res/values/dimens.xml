@@ -1,3 +1,10 @@
 <resources>
     <dimen name="fab_margin">16dp</dimen>
+    <dimen name="space_xs">6dp</dimen>
+    <dimen name="space_sm">10dp</dimen>
+    <dimen name="space_md">16dp</dimen>
+    <dimen name="space_lg">24dp</dimen>
+    <dimen name="space_xl">32dp</dimen>
+    <dimen name="radius_md">18dp</dimen>
+    <dimen name="radius_lg">24dp</dimen>
 </resources>

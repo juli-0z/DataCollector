@@ -2,9 +2,13 @@ package cn.zjl.datacollector.data;
 
 import android.content.Context;
 
+import androidx.annotation.NonNull;
 import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import cn.zjl.datacollector.data.dao.CollectionParameterDao;
 import cn.zjl.datacollector.data.dao.DeviceMonitorDao;
@@ -12,60 +16,83 @@ import cn.zjl.datacollector.data.dao.MeasurementPointDao;
 import cn.zjl.datacollector.data.dao.ProjectDao;
 import cn.zjl.datacollector.data.dao.SurveyLineDao;
 import cn.zjl.datacollector.data.dao.WaveformDao;
+import cn.zjl.datacollector.data.dao.WorkSetDao;
 import cn.zjl.datacollector.data.entity.CollectionParameterEntity;
 import cn.zjl.datacollector.data.entity.DeviceMonitorEntity;
 import cn.zjl.datacollector.data.entity.MeasurementPointEntity;
 import cn.zjl.datacollector.data.entity.ProjectEntity;
 import cn.zjl.datacollector.data.entity.SurveyLineEntity;
 import cn.zjl.datacollector.data.entity.WaveformDataEntity;
+import cn.zjl.datacollector.data.entity.WorkSetEntity;
 
-/**
- * 应用主数据库
- */
 @Database(
-    entities = {
-        ProjectEntity.class,
-        SurveyLineEntity.class,
-        MeasurementPointEntity.class,
-        CollectionParameterEntity.class,
-        WaveformDataEntity.class,
-        DeviceMonitorEntity.class
-    },
-    version = 1,
-    exportSchema = false
+        entities = {
+                WorkSetEntity.class,
+                ProjectEntity.class,
+                SurveyLineEntity.class,
+                MeasurementPointEntity.class,
+                CollectionParameterEntity.class,
+                WaveformDataEntity.class,
+                DeviceMonitorEntity.class
+        },
+        version = 4,
+        exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
-    private static volatile AppDatabase INSTANCE;
-    
+
+    public static final String INDEX_DATABASE_NAME = "project_index.sqlite";
+
+    private static final Map<String, AppDatabase> INSTANCES = new ConcurrentHashMap<>();
+
+    public abstract WorkSetDao workSetDao();
+
     public abstract ProjectDao projectDao();
+
     public abstract SurveyLineDao surveyLineDao();
+
     public abstract MeasurementPointDao measurementPointDao();
+
     public abstract CollectionParameterDao collectionParameterDao();
+
     public abstract WaveformDao waveformDao();
+
     public abstract DeviceMonitorDao deviceMonitorDao();
-    
-    /**
-     * 获取单例数据库实例
-     */
-    public static AppDatabase getInstance(Context context) {
-        if (INSTANCE == null) {
-            synchronized (AppDatabase.class) {
-                if (INSTANCE == null) {
-                    INSTANCE = Room.databaseBuilder(
-                        context.getApplicationContext(),
-                        AppDatabase.class,
-                        "data_collector.db"
-                    ).build();
-                }
-            }
-        }
-        return INSTANCE;
+
+    public static AppDatabase getInstance(@NonNull Context context) {
+        return getInstance(context, INDEX_DATABASE_NAME);
     }
-    
-    /**
-     * 销毁数据库实例（用于测试）
-     */
-    public static void destroyInstance() {
-        INSTANCE = null;
+
+    public static AppDatabase getInstance(@NonNull Context context, @NonNull String databaseName) {
+        AppDatabase existing = INSTANCES.get(databaseName);
+        if (existing != null) {
+            return existing;
+        }
+        synchronized (AppDatabase.class) {
+            existing = INSTANCES.get(databaseName);
+            if (existing == null) {
+                existing = Room.databaseBuilder(
+                                context.getApplicationContext(),
+                                AppDatabase.class,
+                                databaseName)
+                        .fallbackToDestructiveMigration()
+                        .build();
+                INSTANCES.put(databaseName, existing);
+            }
+            return existing;
+        }
+    }
+
+    public static void closeDatabase(@NonNull String databaseName) {
+        AppDatabase database = INSTANCES.remove(databaseName);
+        if (database != null) {
+            database.close();
+        }
+    }
+
+    public static void destroyAll() {
+        for (Map.Entry<String, AppDatabase> entry : INSTANCES.entrySet()) {
+            entry.getValue().close();
+        }
+        INSTANCES.clear();
     }
 }

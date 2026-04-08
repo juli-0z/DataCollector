@@ -2,10 +2,37 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
-    <color name="pink">#F073AD</color>
+
+    <color name="blue_primary">#1F5C57</color>
+    <color name="blue_primary_dark">#123C39</color>
+    <color name="blue_light">#DDEDE4</color>
+    <color name="blue_accent">#D58C3B</color>
+    <color name="toolbar_glow">#26FFFFFF</color>
+    <color name="toolbar_top_line">#4DFFFFFF</color>
+    <color name="toolbar_bottom_line">#22111C1B</color>
+
+    <color name="gray_light">#F6F3EC</color>
+    <color name="gray_text">#5F675F</color>
+    <color name="divider">#D8D1C5</color>
+
+    <color name="success">#2E7D5B</color>
+    <color name="warning">#C98328</color>
+    <color name="error">#B94A48</color>
+
+    <color name="page_background">#F2EEE5</color>
+    <color name="page_background_alt">#E8E1D3</color>
+    <color name="surface_card">#FFFBF4</color>
+    <color name="surface_card_strong">#F7F0E2</color>
+    <color name="surface_chip">#E6EFE8</color>
+    <color name="text_primary">#21312E</color>
+    <color name="text_secondary">#61716C</color>
+    <color name="chart_recv">#2E6FBD</color>
+    <color name="chart_send">#CC6B2C</color>
+    <color name="chart_off">#2C8C6A</color>
+    <color name="status_idle_bg">#FBE2DC</color>
+    <color name="status_idle_fg">#A24636</color>
+    <color name="status_active_bg">#DDF1E7</color>
+    <color name="status_active_fg">#226A4C</color>
+    <color name="status_pending_bg">#F7ECD2</color>
+    <color name="status_pending_fg">#8A6220</color>
 </resources>
