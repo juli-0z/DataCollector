@@ -1,4 +1,5 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- 阅读提示：主题资源：定义应用主题、状态栏、窗口背景和 Material 组件默认样式。 注释使用简体中文并按 UTF-8 保存，避免 Android Studio 中出现乱码。 -->
     <style name="Base.Theme.DataCollector" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/blue_primary</item>
         <item name="colorPrimaryVariant">@color/blue_primary_dark</item>
@@ -19,7 +20,6 @@
         <item name="floatingActionButtonStyle">@style/Widget.DataCollector.Fab</item>
         <item name="textInputStyle">@style/Widget.DataCollector.TextInputLayout</item>
         <item name="editTextStyle">@style/Widget.DataCollector.EditText</item>
-        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.DataCollector.Medium</item>
     </style>
 
     <style name="Theme.DataCollector" parent="Base.Theme.DataCollector" />

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 阅读提示：回放测点列表项布局：展示历史测点编号和采集状态。 注释使用简体中文并按 UTF-8 保存，避免 Android Studio 中出现乱码。 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"

@@ -1,9 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 阅读提示：工程列表菜单：提供导入、上传中心、日志中心等全局入口。 注释使用简体中文并按 UTF-8 保存，避免 Android Studio 中出现乱码。 -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_data_upload"
+        android:title="@string/menu_data_upload"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_sync_settings"
         android:title="@string/menu_sync_settings"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_operation_log_center"
+        android:title="@string/menu_operation_log_center"
         app:showAsAction="never" />
 </menu>

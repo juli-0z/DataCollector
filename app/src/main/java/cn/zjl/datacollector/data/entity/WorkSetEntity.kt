@@ -1,27 +1,17 @@
-package cn.zjl.datacollector.data.entity;
+package cn.zjl.datacollector.data.entity
 
-import androidx.room.Entity;
-import androidx.room.PrimaryKey;
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
 @Entity(tableName = "data_workset")
-public class WorkSetEntity {
-
-    @PrimaryKey(autoGenerate = true)
-    public long id;
-
-    public int workConfig;
-
-    public float sendCoil_Len;
-
-    public float sendCoil_Width;
-
-    public float sendCoil_Turns;
-
-    public float recvCoil_Size;
-
-    public float recvCoil_Gain;
-
-    public long createdAt;
-
-    public long updatedAt;
-}
+data class WorkSetEntity(
+    @PrimaryKey(autoGenerate = true) var id: Long = 0,
+    var workConfig: Int = 0,
+    var sendCoil_Len: Float = 0f,
+    var sendCoil_Width: Float = 0f,
+    var sendCoil_Turns: Float = 0f,
+    var recvCoil_Size: Float = 0f,
+    var recvCoil_Gain: Float = 0f,
+    var createdAt: Long = 0,
+    var updatedAt: Long = 0
+)

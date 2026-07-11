@@ -1,4 +1,5 @@
 <resources>
+    <!-- 阅读提示：尺寸资源：统一维护页面间距、字号、高度和响应式布局尺寸。 注释使用简体中文并按 UTF-8 保存，避免 Android Studio 中出现乱码。 -->
     <dimen name="fab_margin">16dp</dimen>
     <dimen name="space_xs">6dp</dimen>
     <dimen name="space_sm">10dp</dimen>

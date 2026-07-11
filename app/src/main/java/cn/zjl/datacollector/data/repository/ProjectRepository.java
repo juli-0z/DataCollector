@@ -1,5 +1,10 @@
 package cn.zjl.datacollector.data.repository;
 
+/**
+ * 阅读提示：工程索引仓库：管理应用主库中的工程列表、导入标记、默认工程和同步绑定信息。
+ * 本文件中的注释使用简体中文，便于按业务流程阅读代码；修改逻辑时请同步检查相关数据库、界面和同步链路。
+ */
+
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -130,12 +135,12 @@ public class ProjectRepository {
                 projectDatabase.runInTransaction(() -> {
                     projectDbDao.deleteAll();
                     long projectId = projectDbDao.insert(projectRecord);
-                    projectRecord.id = projectId;
+                    projectRecord.setId(projectId);
                 });
 
                 ProjectEntity indexProject = copyForIndex(projectRecord);
                 long indexId = projectDao.insert(indexProject);
-                indexProject.id = indexId;
+                indexProject.setId(indexId);
                 callback.onSuccess(indexProject);
             } catch (Exception e) {
                 callback.onError(context.getString(R.string.error_create_project_failed, e.getMessage()));
@@ -177,7 +182,7 @@ public class ProjectRepository {
 
     public void touchProject(ProjectEntity project) {
         executorService.execute(() -> {
-            project.updatedAt = System.currentTimeMillis();
+            project.setUpdatedAt(System.currentTimeMillis());
             projectDao.update(project);
         });
     }
@@ -205,7 +210,7 @@ public class ProjectRepository {
             ProjectEntity importedProject = readLegacyProject(legacyDb);
             String importName = preferredName;
             if (importName == null || importName.trim().isEmpty()) {
-                importName = importedProject.name;
+                importName = importedProject.getName();
             }
             if (importName == null || importName.trim().isEmpty()) {
                 importName = fallbackName;
@@ -219,13 +224,13 @@ public class ProjectRepository {
 
             String databaseName = buildDatabaseName(importName);
             resetDatabase(databaseName);
-            importedProject.name = importName;
-            importedProject.databaseName = databaseName;
-            importedProject.databasePath = context.getDatabasePath(databaseName).getAbsolutePath();
-            importedProject.imported = true;
-            importedProject.updatedAt = System.currentTimeMillis();
-            if (importedProject.createdAt == 0L) {
-                importedProject.createdAt = importedProject.updatedAt;
+            importedProject.setName(importName);
+            importedProject.setDatabaseName(databaseName);
+            importedProject.setDatabasePath(context.getDatabasePath(databaseName).getAbsolutePath());
+            importedProject.setImported(true);
+            importedProject.setUpdatedAt(System.currentTimeMillis());
+            if (importedProject.getCreatedAt() == 0L) {
+                importedProject.setCreatedAt(importedProject.getUpdatedAt());
             }
 
             AppDatabase projectDatabase = AppDatabase.getInstance(context, databaseName);
@@ -233,7 +238,7 @@ public class ProjectRepository {
 
             ProjectEntity indexProject = copyForIndex(importedProject);
             long indexId = projectDao.insert(indexProject);
-            indexProject.id = indexId;
+            indexProject.setId(indexId);
             return indexProject;
         } finally {
             if (legacyDb != null) {
@@ -252,7 +257,7 @@ public class ProjectRepository {
         projectDatabase.runInTransaction(() -> {
             projectDbDao.deleteAll();
             long internalProjectId = projectDbDao.insert(importedProject);
-            importedProject.id = internalProjectId;
+            importedProject.setId(internalProjectId);
 
             List<SurveyLineEntity> lines = readLegacyLines(legacyDb, internalProjectId);
             if (!lines.isEmpty()) {
@@ -279,56 +284,56 @@ public class ProjectRepository {
     private ProjectEntity buildProjectRecord(String name, String description, String databaseName, boolean imported) {
         long now = System.currentTimeMillis();
         ProjectEntity project = new ProjectEntity();
-        project.name = name;
-        project.note = description;
-        project.databaseName = databaseName;
-        project.databasePath = context.getDatabasePath(databaseName).getAbsolutePath();
-        project.imported = imported;
-        project.createdAt = now;
-        project.updatedAt = now;
-        project.lastSyncedAt = 0L;
-        project.greateTime = now;
-        project.lineNoStart = 1f;
-        project.lineNoStep = 1f;
-        project.pointNoStart = 1f;
-        project.pointNoStep = 1f;
+        project.setName(name);
+        project.setNote(description);
+        project.setDatabaseName(databaseName);
+        project.setDatabasePath(context.getDatabasePath(databaseName).getAbsolutePath());
+        project.setImported(imported);
+        project.setCreatedAt(now);
+        project.setUpdatedAt(now);
+        project.setLastSyncedAt(0L);
+        project.setGreateTime(now);
+        project.setLineNoStart(1f);
+        project.setLineNoStep(1f);
+        project.setPointNoStart(1f);
+        project.setPointNoStep(1f);
         return project;
     }
 
     private ProjectEntity copyForIndex(ProjectEntity source) {
         ProjectEntity copy = new ProjectEntity();
-        copy.name = source.name;
-        copy.note = source.note;
-        copy.databaseName = source.databaseName;
-        copy.databasePath = source.databasePath;
-        copy.imported = source.imported;
-        copy.createdAt = source.createdAt;
-        copy.updatedAt = source.updatedAt;
-        copy.lastSyncedAt = source.lastSyncedAt;
-        copy.workConfig = source.workConfig;
-        copy.lineNoStart = source.lineNoStart;
-        copy.lineNoStep = source.lineNoStep;
-        copy.pointNoStart = source.pointNoStart;
-        copy.pointNoStep = source.pointNoStep;
-        copy.sendCoil_Len = source.sendCoil_Len;
-        copy.sendCoil_Width = source.sendCoil_Width;
-        copy.sendCoil_Turns = source.sendCoil_Turns;
-        copy.recvCoil_Size = source.recvCoil_Size;
-        copy.recvCoil_Gain = source.recvCoil_Gain;
-        copy.offTime = source.offTime;
-        copy.pointLen_D = source.pointLen_D;
-        copy.pointLen_R = source.pointLen_R;
-        copy.calibrateNo = source.calibrateNo;
-        copy.ssid = source.ssid;
-        copy.greateTime = source.greateTime;
+        copy.setName(source.getName());
+        copy.setNote(source.getNote());
+        copy.setDatabaseName(source.getDatabaseName());
+        copy.setDatabasePath(source.getDatabasePath());
+        copy.setImported(source.getImported());
+        copy.setCreatedAt(source.getCreatedAt());
+        copy.setUpdatedAt(source.getUpdatedAt());
+        copy.setLastSyncedAt(source.getLastSyncedAt());
+        copy.setWorkConfig(source.getWorkConfig());
+        copy.setLineNoStart(source.getLineNoStart());
+        copy.setLineNoStep(source.getLineNoStep());
+        copy.setPointNoStart(source.getPointNoStart());
+        copy.setPointNoStep(source.getPointNoStep());
+        copy.setSendCoil_Len(source.getSendCoil_Len());
+        copy.setSendCoil_Width(source.getSendCoil_Width());
+        copy.setSendCoil_Turns(source.getSendCoil_Turns());
+        copy.setRecvCoil_Size(source.getRecvCoil_Size());
+        copy.setRecvCoil_Gain(source.getRecvCoil_Gain());
+        copy.setOffTime(source.getOffTime());
+        copy.setPointLen_D(source.getPointLen_D());
+        copy.setPointLen_R(source.getPointLen_R());
+        copy.setCalibrateNo(source.getCalibrateNo());
+        copy.setSsid(source.getSsid());
+        copy.setGreateTime(source.getGreateTime());
         return copy;
     }
 
     private void deleteProjectInternal(ProjectEntity project) {
         projectDao.delete(project);
-        if (project.databaseName != null) {
-            AppDatabase.closeDatabase(project.databaseName);
-            context.deleteDatabase(project.databaseName);
+        if (project.getDatabaseName() != null) {
+            AppDatabase.closeDatabase(project.getDatabaseName());
+            context.deleteDatabase(project.getDatabaseName());
         }
     }
 
@@ -375,11 +380,11 @@ public class ProjectRepository {
     }
 
     private boolean isBundledProjectValid(ProjectEntity project) {
-        if (project == null || project.databaseName == null || project.databaseName.trim().isEmpty()) {
+        if (project == null || project.getDatabaseName() == null || project.getDatabaseName().trim().isEmpty()) {
             return false;
         }
 
-        File databaseFile = context.getDatabasePath(project.databaseName);
+        File databaseFile = context.getDatabasePath(project.getDatabaseName());
         if (!databaseFile.exists() || databaseFile.length() <= 0L) {
             return false;
         }
@@ -433,30 +438,30 @@ public class ProjectRepository {
     private ProjectEntity readLegacyProject(SQLiteDatabase database) {
         ProjectEntity project = new ProjectEntity();
         long now = System.currentTimeMillis();
-        project.createdAt = now;
-        project.updatedAt = now;
-        project.greateTime = now;
+        project.setCreatedAt(now);
+        project.setUpdatedAt(now);
+        project.setGreateTime(now);
         try (Cursor cursor = database.rawQuery("SELECT * FROM Data_Project LIMIT 1", null)) {
             if (cursor.moveToFirst()) {
-                project.id = getLong(cursor, "ID", 0L);
-                project.workConfig = getInt(cursor, "WorkConfig", 0);
-                project.lineNoStart = getFloat(cursor, "LineNoStart", 1f);
-                project.lineNoStep = getFloat(cursor, "LineNoSetp", getFloat(cursor, "LineNoStep", 1f));
-                project.pointNoStart = getFloat(cursor, "PointNoStart", 1f);
-                project.pointNoStep = getFloat(cursor, "PointNoStep", 1f);
-                project.sendCoil_Len = getFloat(cursor, "SendCoil_Len", 0f);
-                project.sendCoil_Width = getFloat(cursor, "SendCoil_Width", 0f);
-                project.sendCoil_Turns = getFloat(cursor, "SendCoil_Turns", 0f);
-                project.recvCoil_Size = getFloat(cursor, "RecvCoil_Size", 0f);
-                project.recvCoil_Gain = getFloat(cursor, "RecvCoil_Gain", 0f);
-                project.offTime = getFloat(cursor, "OffTime", 0f);
-                project.pointLen_D = getFloat(cursor, "PointLen_D", 0f);
-                project.pointLen_R = getFloat(cursor, "PointLen_R", 0f);
-                project.greateTime = (long) getFloat(cursor, "CreateTime", (float) now);
-                project.note = getString(cursor, "NOTE", "");
-                project.calibrateNo = getString(cursor, "CalibrateNo", "");
-                project.ssid = getString(cursor, "SSID", "");
-                project.name = getString(cursor, "NAME", null);
+                project.setId(getLong(cursor, "ID", 0L));
+                project.setWorkConfig(getInt(cursor, "WorkConfig", 0));
+                project.setLineNoStart(getFloat(cursor, "LineNoStart", 1f));
+                project.setLineNoStep(getFloat(cursor, "LineNoSetp", getFloat(cursor, "LineNoStep", 1f)));
+                project.setPointNoStart(getFloat(cursor, "PointNoStart", 1f));
+                project.setPointNoStep(getFloat(cursor, "PointNoStep", 1f));
+                project.setSendCoil_Len(getFloat(cursor, "SendCoil_Len", 0f));
+                project.setSendCoil_Width(getFloat(cursor, "SendCoil_Width", 0f));
+                project.setSendCoil_Turns(getFloat(cursor, "SendCoil_Turns", 0f));
+                project.setRecvCoil_Size(getFloat(cursor, "RecvCoil_Size", 0f));
+                project.setRecvCoil_Gain(getFloat(cursor, "RecvCoil_Gain", 0f));
+                project.setOffTime(getFloat(cursor, "OffTime", 0f));
+                project.setPointLen_D(getFloat(cursor, "PointLen_D", 0f));
+                project.setPointLen_R(getFloat(cursor, "PointLen_R", 0f));
+                project.setGreateTime((long) getFloat(cursor, "CreateTime", (float) now));
+                project.setNote(getString(cursor, "NOTE", ""));
+                project.setCalibrateNo(getString(cursor, "CalibrateNo", ""));
+                project.setSsid(getString(cursor, "SSID", ""));
+                project.setName(getString(cursor, "NAME", null));
             }
         } catch (Exception ignored) {
         }
@@ -468,14 +473,14 @@ public class ProjectRepository {
         try (Cursor cursor = database.rawQuery("SELECT * FROM Data_Line ORDER BY NAME ASC", null)) {
             while (cursor.moveToNext()) {
                 SurveyLineEntity line = new SurveyLineEntity();
-                line.id = getLong(cursor, "ID", 0L);
-                line.name = getFloat(cursor, "NAME", 0f);
-                line.type = getInt(cursor, "TYPE", 0);
-                line.use = getInt(cursor, "USE", 1);
-                line.note = getString(cursor, "NOTE", "");
-                line.projectId = projectId;
-                line.createdAt = System.currentTimeMillis();
-                line.updatedAt = line.createdAt;
+                line.setId(getLong(cursor, "ID", 0L));
+                line.setName(getFloat(cursor, "NAME", 0f));
+                line.setType(getInt(cursor, "TYPE", 0));
+                line.setUse(getInt(cursor, "USE", 1));
+                line.setNote(getString(cursor, "NOTE", ""));
+                line.setProjectId(projectId);
+                line.setCreatedAt(System.currentTimeMillis());
+                line.setUpdatedAt(line.getCreatedAt());
                 lines.add(line);
             }
         } catch (Exception ignored) {
@@ -488,18 +493,18 @@ public class ProjectRepository {
         try (Cursor cursor = database.rawQuery("SELECT * FROM Data_Point ORDER BY Data_LineID ASC, NAME ASC", null)) {
             while (cursor.moveToNext()) {
                 MeasurementPointEntity point = new MeasurementPointEntity();
-                point.id = getLong(cursor, "ID", 0L);
-                point.name = getFloat(cursor, "NAME", 0f);
-                point.use = getInt(cursor, "USE", 1);
-                point.note = getString(cursor, "NOTE", "");
-                point.type = getInt(cursor, "TYPE", 0);
-                point.dataLineId = getLong(cursor, "Data_LineID", 0L);
-                point.status = 2;
-                point.isQualified = point.use == 1;
-                point.isSynced = false;
-                point.collectionTime = System.currentTimeMillis();
-                point.createdAt = point.collectionTime;
-                point.updatedAt = point.collectionTime;
+                point.setId(getLong(cursor, "ID", 0L));
+                point.setName(getFloat(cursor, "NAME", 0f));
+                point.setUse(getInt(cursor, "USE", 1));
+                point.setNote(getString(cursor, "NOTE", ""));
+                point.setType(getInt(cursor, "TYPE", 0));
+                point.setDataLineId(getLong(cursor, "Data_LineID", 0L));
+                point.setStatus(2);
+                point.setQualified(point.getUse() == 1);
+                point.setSynced(false);
+                point.setCollectionTime(System.currentTimeMillis());
+                point.setCreatedAt(point.getCollectionTime());
+                point.setUpdatedAt(point.getCollectionTime());
                 points.add(point);
             }
         } catch (Exception ignored) {
@@ -512,24 +517,24 @@ public class ProjectRepository {
         try (Cursor cursor = database.rawQuery("SELECT * FROM Data_Sample ORDER BY Data_PointID ASC, ID ASC", null)) {
             while (cursor.moveToNext()) {
                 WaveformDataEntity waveform = new WaveformDataEntity();
-                waveform.id = getLong(cursor, "ID", 0L);
-                waveform.startTime = getLong(cursor, "StartTime", System.currentTimeMillis());
-                waveform.deviceType = getInt(cursor, "DeviceType", 0);
-                waveform.type = getInt(cursor, "TYPE", 0);
-                waveform.period = getInt(cursor, "PERIOD", 1);
-                waveform.dataRecv = getBlob(cursor, "DATA_RECV");
-                waveform.dataRecvPos = getBlob(cursor, "DATA_RECV_POS");
-                waveform.dataRecvLen = getBlob(cursor, "DATA_RECV_LEN");
-                waveform.dataSend = getBlob(cursor, "DATA_SEND");
-                waveform.dataSoff = getBlob(cursor, "DATA_SOFF");
-                waveform.sendFs = getFloat(cursor, "SendFs", 0f);
-                waveform.simpleSendFs = getFloat(cursor, "SampleSendFs", getFloat(cursor, "SimpleSendFs", 0f));
-                waveform.simpleOffFs = getFloat(cursor, "SampleOffFs", getFloat(cursor, "SimpleOffFs", 0f));
-                waveform.recvFs = getFloat(cursor, "RecvFs", 0f);
-                waveform.use = getInt(cursor, "USE", 1);
-                waveform.note = getString(cursor, "NOTE", "");
-                waveform.dataPointId = getLong(cursor, "Data_PointID", 0L);
-                waveform.createdAt = System.currentTimeMillis();
+                waveform.setId(getLong(cursor, "ID", 0L));
+                waveform.setStartTime(getLong(cursor, "StartTime", System.currentTimeMillis()));
+                waveform.setDeviceType(getInt(cursor, "DeviceType", 0));
+                waveform.setType(getInt(cursor, "TYPE", 0));
+                waveform.setPeriod(getInt(cursor, "PERIOD", 1));
+                waveform.setDataRecv(getBlob(cursor, "DATA_RECV"));
+                waveform.setDataRecvPos(getBlob(cursor, "DATA_RECV_POS"));
+                waveform.setDataRecvLen(getBlob(cursor, "DATA_RECV_LEN"));
+                waveform.setDataSend(getBlob(cursor, "DATA_SEND"));
+                waveform.setDataSoff(getBlob(cursor, "DATA_SOFF"));
+                waveform.setSendFs(getFloat(cursor, "SendFs", 0f));
+                waveform.setSimpleSendFs(getFloat(cursor, "SampleSendFs", getFloat(cursor, "SimpleSendFs", 0f)));
+                waveform.setSimpleOffFs(getFloat(cursor, "SampleOffFs", getFloat(cursor, "SimpleOffFs", 0f)));
+                waveform.setRecvFs(getFloat(cursor, "RecvFs", 0f));
+                waveform.setUse(getInt(cursor, "USE", 1));
+                waveform.setNote(getString(cursor, "NOTE", ""));
+                waveform.setDataPointId(getLong(cursor, "Data_PointID", 0L));
+                waveform.setCreatedAt(System.currentTimeMillis());
                 waveforms.add(waveform);
             }
         } catch (Exception ignored) {
@@ -541,15 +546,15 @@ public class ProjectRepository {
         try (Cursor cursor = database.rawQuery("SELECT * FROM Data_WorkSet LIMIT 1", null)) {
             if (cursor.moveToFirst()) {
                 WorkSetEntity entity = new WorkSetEntity();
-                entity.id = getLong(cursor, "ID", 0L);
-                entity.workConfig = getInt(cursor, "WorkConfig", 0);
-                entity.sendCoil_Len = getFloat(cursor, "SendCoil_Len", 0f);
-                entity.sendCoil_Width = getFloat(cursor, "SendCoil_Width", 0f);
-                entity.sendCoil_Turns = getFloat(cursor, "SendCoil_Turns", 0f);
-                entity.recvCoil_Size = getFloat(cursor, "RecvCoil_Size", 0f);
-                entity.recvCoil_Gain = getFloat(cursor, "RecvCoil_Gain", 0f);
-                entity.createdAt = System.currentTimeMillis();
-                entity.updatedAt = entity.createdAt;
+                entity.setId(getLong(cursor, "ID", 0L));
+                entity.setWorkConfig(getInt(cursor, "WorkConfig", 0));
+                entity.setSendCoil_Len(getFloat(cursor, "SendCoil_Len", 0f));
+                entity.setSendCoil_Width(getFloat(cursor, "SendCoil_Width", 0f));
+                entity.setSendCoil_Turns(getFloat(cursor, "SendCoil_Turns", 0f));
+                entity.setRecvCoil_Size(getFloat(cursor, "RecvCoil_Size", 0f));
+                entity.setRecvCoil_Gain(getFloat(cursor, "RecvCoil_Gain", 0f));
+                entity.setCreatedAt(System.currentTimeMillis());
+                entity.setUpdatedAt(entity.getCreatedAt());
                 return entity;
             }
         } catch (Exception ignored) {

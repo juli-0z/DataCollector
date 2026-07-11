@@ -1,9 +1,12 @@
 package cn.zjl.datacollector.data.repository;
 
+/**
+ * 阅读提示：单个工程数据库仓库：封装工程内测线、测点、参数、监控、波形和同步状态的读写。
+ * 本文件中的注释使用简体中文，便于按业务流程阅读代码；修改逻辑时请同步检查相关数据库、界面和同步链路。
+ */
+
 import android.content.Context;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -37,6 +40,8 @@ public class DataRepository {
     private final CollectionParameterDao parameterDao;
     private final WaveformDao waveformDao;
     private final DeviceMonitorDao monitorDao;
+    private final ProjectTreeReader projectTreeReader;
+    private final WaveformStorageHelper waveformStorageHelper;
     private final ExecutorService executorService;
 
     public DataRepository(Context context, String databaseName) {
@@ -47,6 +52,8 @@ public class DataRepository {
         this.parameterDao = database.collectionParameterDao();
         this.waveformDao = database.waveformDao();
         this.monitorDao = database.deviceMonitorDao();
+        this.projectTreeReader = new ProjectTreeReader(projectDao, lineDao, pointDao, parameterDao, waveformDao, monitorDao);
+        this.waveformStorageHelper = new WaveformStorageHelper();
         this.executorService = Executors.newSingleThreadExecutor();
     }
 
@@ -129,15 +136,15 @@ public class DataRepository {
                 return;
             }
             SurveyLineEntity line = new SurveyLineEntity();
-            line.name = 1f;
-            line.note = "默认测线";
-            line.projectId = projectId;
-            line.type = 0;
-            line.use = 1;
-            line.createdAt = System.currentTimeMillis();
-            line.updatedAt = line.createdAt;
+            line.setName(1f);
+            line.setNote("默认测线");
+            line.setProjectId(projectId);
+            line.setType(0);
+            line.setUse(1);
+            line.setCreatedAt(System.currentTimeMillis());
+            line.setUpdatedAt(line.getCreatedAt());
             long lineId = lineDao.insert(line);
-            line.id = lineId;
+            line.setId(lineId);
             callback.onSuccess(line);
         });
     }
@@ -146,13 +153,13 @@ public class DataRepository {
         executorService.execute(() -> {
             try {
                 SurveyLineEntity line = new SurveyLineEntity();
-                line.projectId = projectId;
-                line.name = name;
-                line.note = note;
-                line.type = 0;
-                line.use = 1;
-                line.createdAt = System.currentTimeMillis();
-                line.updatedAt = line.createdAt;
+                line.setProjectId(projectId);
+                line.setName(name);
+                line.setNote(note);
+                line.setType(0);
+                line.setUse(1);
+                line.setCreatedAt(System.currentTimeMillis());
+                line.setUpdatedAt(line.getCreatedAt());
                 callback.onSuccess(lineDao.insert(line));
             } catch (Exception e) {
                 callback.onError(e.getMessage());
@@ -178,49 +185,16 @@ public class DataRepository {
 
     public void getPointSummaries(LoadListCallback<PointSummary> callback) {
         executorService.execute(() -> {
-            List<PointSummary> summaries = new ArrayList<>();
-            long projectId = requireProjectId();
-            List<SurveyLineEntity> lines = lineDao.getSurveyLinesByProjectId(projectId);
-            for (SurveyLineEntity line : lines) {
-                List<MeasurementPointEntity> points = pointDao.getPointsBySurveyLineId(line.id);
-                for (MeasurementPointEntity point : points) {
-                    PointSummary summary = new PointSummary();
-                    summary.line = line;
-                    summary.point = point;
-                    summary.waveformRowCount = waveformDao.countByPointId(point.id);
-                    CollectionParameterEntity parameter = parameterDao.getLatestParametersByPointId(point.id);
-                    summary.collectionCount = parameter != null ? parameter.collectionCount : Math.max(1, summary.waveformRowCount / 3);
-                    summaries.add(summary);
-                }
-            }
             if (callback != null) {
-                callback.onResult(summaries);
+                callback.onResult(projectTreeReader.getPointSummaries());
             }
         });
     }
 
     public void getProjectTree(LoadObjectCallback<ProjectTreeSummary> callback) {
         executorService.execute(() -> {
-            ProjectTreeSummary tree = new ProjectTreeSummary();
-            tree.project = projectDao.getFirstProject();
-            List<SurveyLineEntity> lines = tree.project != null
-                    ? lineDao.getSurveyLinesByProjectId(tree.project.id)
-                    : lineDao.getAllSurveyLines();
-            for (SurveyLineEntity line : lines) {
-                LineTreeSummary lineTree = new LineTreeSummary();
-                lineTree.line = line;
-                List<MeasurementPointEntity> points = pointDao.getPointsBySurveyLineId(line.id);
-                for (MeasurementPointEntity point : points) {
-                    PointTreeSummary pointTree = new PointTreeSummary();
-                    pointTree.point = point;
-                    pointTree.sessions = buildSessionSummaries(waveformDao.getWaveformsByPointId(point.id));
-                    lineTree.points.add(pointTree);
-                    tree.pointCount++;
-                }
-                tree.lines.add(lineTree);
-            }
             if (callback != null) {
-                callback.onResult(tree);
+                callback.onResult(projectTreeReader.getProjectTree());
             }
         });
     }
@@ -238,14 +212,14 @@ public class DataRepository {
             List<MeasurementPointEntity> points = pointDao.getPointsBySurveyLineId(surveyLineId);
             MeasurementPointEntity target = null;
             for (MeasurementPointEntity point : points) {
-                if (point.name < currentPointNumber) {
-                    if (target == null || point.name > target.name) {
+                if (point.getName() < currentPointNumber) {
+                    if (target == null || point.getName() > target.getName()) {
                         target = point;
                     }
                 }
             }
             if (callback != null) {
-                callback.onResult(target == null ? null : parameterDao.getLatestParametersByPointId(target.id));
+                callback.onResult(target == null ? null : parameterDao.getLatestParametersByPointId(target.getId()));
             }
         });
     }
@@ -253,45 +227,66 @@ public class DataRepository {
     public void getAllDataByPoint(long pointId, LoadObjectCallback<PointData> callback) {
         executorService.execute(() -> {
             if (callback != null) {
-                callback.onResult(loadPointData(pointId));
+                callback.onResult(projectTreeReader.loadPointData(pointId));
             }
         });
     }
 
     public PointData getAllDataByPointSync(long pointId) {
-        return loadPointData(pointId);
+        return projectTreeReader.loadPointData(pointId);
+    }
+
+    public SurveyLineEntity getSurveyLineSync(long lineId) {
+        return lineDao.getSurveyLineById(lineId);
     }
 
     public void getAllWaveformsByProject(LoadListCallback<WaveformDataEntity> callback) {
         executorService.execute(() -> {
-            List<WaveformDataEntity> result = new ArrayList<>();
-            long projectId = requireProjectId();
-            List<SurveyLineEntity> lines = lineDao.getSurveyLinesByProjectId(projectId);
-            for (SurveyLineEntity line : lines) {
-                List<MeasurementPointEntity> points = pointDao.getPointsBySurveyLineId(line.id);
-                for (MeasurementPointEntity point : points) {
-                    result.addAll(waveformDao.getWaveformsByPointId(point.id));
-                }
-            }
             if (callback != null) {
-                callback.onResult(result);
+                callback.onResult(projectTreeReader.getAllWaveformsByProject());
             }
         });
     }
 
     public void getAllWaveformsByLine(long lineId, LoadListCallback<WaveformDataEntity> callback) {
         executorService.execute(() -> {
-            List<WaveformDataEntity> result = new ArrayList<>();
-            List<MeasurementPointEntity> points = pointDao.getPointsBySurveyLineId(lineId);
-            for (MeasurementPointEntity point : points) {
-                result.addAll(waveformDao.getWaveformsByPointId(point.id));
-            }
             if (callback != null) {
-                callback.onResult(result);
+                callback.onResult(projectTreeReader.getAllWaveformsByLine(lineId));
             }
         });
     }
-
+    /**
+     * 保存一次完整的采集会话。
+     * <p>这是数据采集系统的核心写入方法，一次调用完成四级联写入：
+     * <ol>
+     *   <li><b>测点（MeasurementPoint）</b>——新建或更新，记录状态、位置、质量判定</li>
+     *   <li><b>采集参数（CollectionParameter）</b>——追加写入，保留历史参数</li>
+     *   <li><b>设备监控（DeviceMonitor）</b>——追加写入，记录电压/电流等</li>
+     *   <li><b>波形数据（Waveform）</b>——批量追加，按时间轴拆分为逐行记录</li>
+     * </ol>
+     *
+     * <p>线程安全：所有操作包裹在 Room 事务中，通过单线程池串行执行。
+     *
+     * <p>追加会话机制：同一测点号多次采集时，测点表仅更新状态（覆盖），
+     * 参数/监控/波形表每次追加新记录，通过 {@code collectionTime} 区分不同会话。
+     *
+     * @param surveyLineId  所属测线 ID
+     * @param pointNumber   测点号（如 1.0, 2.0, 3.5）
+     * @param pointType     测点类型（常规/加密/校验等）
+     * @param pointNote     测点备注（用户输入）
+     * @param parameters    采集参数实体（包含采样率、增益、通道配置等）
+     * @param timeAxis      时间轴数据
+     * @param recvValues    接收通道幅值
+     * @param sendValues    发送通道幅值
+     * @param offValues     偏移通道幅值
+     * @param monitor       设备监控数据（电压、电流、温度等）
+     * @param latitude      纬度
+     * @param longitude     经度
+     * @param altitude      海拔高度（米）
+     * @param qualified     质量判定：true=合格，false=不合格
+     * @param judgeNote     质量判定备注（如"波形噪声过大"），优先级高于 pointNote
+     * @param callback      回调：成功返回测点实体，失败返回错误信息
+     */
     public void saveCollectionSession(long surveyLineId,
                                       float pointNumber,
                                       int pointType,
@@ -310,56 +305,73 @@ public class DataRepository {
                                       SaveCallback<MeasurementPointEntity> callback) {
         executorService.execute(() -> {
             try {
+                // 使用单元素数组绕过 lambda 的 effectively final 限制，
+                // 使事务内部的 point 对象可以在事务结束后通过回调返回
                 MeasurementPointEntity[] holder = new MeasurementPointEntity[1];
                 database.runInTransaction(() -> {
+                    // 统一时间戳：事务内所有记录的写入时间保持一致
                     long now = System.currentTimeMillis();
+                    // === 第一步：查找或创建测点 ===
                     MeasurementPointEntity point = pointDao.getPointByNumber(surveyLineId, pointNumber);
                     boolean pointExists = point != null;
                     if (point == null) {
+                        // 新测点：构造实体并设置创建时间
                         point = new MeasurementPointEntity();
-                        point.dataLineId = surveyLineId;
-                        point.createdAt = now;
+                        point.setDataLineId(surveyLineId);
+                        point.setCreatedAt(now);
                     }
-                    point.name = pointNumber;
-                    point.use = qualified ? 1 : 0;
-                    point.type = pointType;
-                    point.note = judgeNote != null && !judgeNote.isEmpty() ? judgeNote : pointNote;
-                    point.status = STATUS_SAVED;
-                    point.isQualified = qualified;
-                    point.isSynced = false;
-                    point.collectionTime = now;
-                    point.latitude = latitude;
-                    point.longitude = longitude;
-                    point.altitude = altitude;
-                    point.syncError = null;
-                    point.updatedAt = now;
+                    // 填充测点字段（无论新建还是更新，以下字段均会覆盖）
+                    point.setName(pointNumber);
+                    point.setUse(qualified ? 1 : 0);          // 合格→启用，不合格→禁用
+                    point.setType(pointType);
+                    // 优先级：判定备注 > 用户原始备注
+                    point.setNote(judgeNote != null && !judgeNote.isEmpty() ? judgeNote : pointNote);
+                    point.setStatus(STATUS_SAVED);            // 采集完成，标记为已保存
+                    point.setQualified(qualified);
+                    point.setSynced(false);                 // 强制重置同步状态，确保新数据会被上传
+                    point.setCollectionTime(now);             // 记录采集时间
+                    point.setLatitude(latitude);
+                    point.setLongitude(longitude);
+                    point.setAltitude(altitude);
+                    point.setSyncError(null);                 // 清除历史同步错误
+                    point.setUpdatedAt(now);
                     if (pointExists) {
-                        pointDao.update(point);
+                        pointDao.update(point);              // 已存在 → UPDATE
                     } else {
-                        long pointId = pointDao.insert(point);
-                        point.id = pointId;
+                        long pointId = pointDao.insert(point);  // 新测点 → INSERT
+                        point.setId(pointId);                  // 回填自增 ID
                     }
 
-                    long pointId = point.id;
+                    long pointId = point.getId();
 
+                    // === 第二步：追加采集参数 ===
+                    // 每次采集都作为新记录写入，id 置 0 确保走 INSERT 而非 UPDATE
                     if (parameters != null) {
-                        parameters.id = 0L;
-                        parameters.pointId = pointId;
-                        parameters.createdAt = now;
+                        parameters.setId(0L);
+                        parameters.setPointId(pointId);
+                        parameters.setCreatedAt(now);
                         parameterDao.insert(parameters);
                     }
 
                     if (monitor != null) {
-                        monitor.id = 0L;
-                        monitor.pointId = pointId;
-                        if (monitor.timestamp == 0L) {
-                            monitor.timestamp = now;
+                        monitor.setId(0L);
+                        monitor.setPointId(pointId);
+                        if (monitor.getTimestamp() == 0L) {
+                            monitor.setTimestamp(now);
                         }
                         monitorDao.insert(monitor);
                     }
 
                     // 同一测点的后续采集按“追加会话”写入，保留历史采样次数。
-                    waveformDao.insertAll(buildWaveforms(pointId, parameters, timeAxis, recvValues, sendValues, offValues, now));
+                    waveformDao.insertAll(waveformStorageHelper.buildWaveforms(
+                            pointId,
+                            parameters,
+                            timeAxis,
+                            recvValues,
+                            sendValues,
+                            offValues,
+                            now
+                    ));
                     touchProject(now);
                     holder[0] = point;
                 });
@@ -374,218 +386,48 @@ public class DataRepository {
         return pointDao.getUnsyncedPoints();
     }
 
+    public List<MeasurementPointEntity> getUploadablePointsSync() {
+        return pointDao.getUploadablePoints();
+    }
+
+    public List<MeasurementPointEntity> getFailedUnsyncedPointsSync() {
+        return pointDao.getFailedUnsyncedPoints();
+    }
+
     public void markPointAsSynced(long pointId) {
-        executorService.execute(() -> pointDao.updateSyncState(pointId, true, null, System.currentTimeMillis()));
+        executorService.execute(() -> markPointAsSyncedSync(pointId));
     }
 
     public void markPointSyncError(long pointId, String error) {
-        executorService.execute(() -> pointDao.updateSyncState(pointId, false, error, System.currentTimeMillis()));
+        executorService.execute(() -> markPointSyncErrorSync(pointId, error));
+    }
+
+    public void markPointAsSyncedSync(long pointId) {
+        pointDao.updateSyncState(pointId, STATUS_SYNCED, true, null, System.currentTimeMillis());
+    }
+
+    public void markPointSyncErrorSync(long pointId, String error) {
+        pointDao.updateSyncState(pointId, STATUS_SAVED, false, error, System.currentTimeMillis());
+    }
+
+    public void updateProjectLastSyncedSync(long syncedAt) {
+        ProjectEntity project = projectDao.getFirstProject();
+        if (project == null) {
+            return;
+        }
+        project.setLastSyncedAt(syncedAt);
+        project.setUpdatedAt(syncedAt);
+        projectDao.update(project);
     }
 
     public void updatePointStatus(long pointId, int status) {
         executorService.execute(() -> pointDao.updateStatus(pointId, status, System.currentTimeMillis()));
     }
 
-    private PointData loadPointData(long pointId) {
-        PointData data = new PointData();
-        data.point = pointDao.getPointById(pointId);
-        data.parameters = parameterDao.getLatestParametersByPointId(pointId);
-        data.waveforms = waveformDao.getWaveformsByPointId(pointId);
-        data.monitors = monitorDao.getMonitorsByPointId(pointId);
-        return data;
-    }
-
-    private List<CollectionSessionSummary> buildSessionSummaries(List<WaveformDataEntity> waveforms) {
-        List<CollectionSessionSummary> sessions = new ArrayList<>();
-        if (waveforms == null || waveforms.isEmpty()) {
-            return sessions;
-        }
-
-        boolean rowContainsFullWaveforms = false;
-        for (WaveformDataEntity waveform : waveforms) {
-            int channelCount = 0;
-            if (waveform.dataRecv != null && waveform.dataRecv.length > 0) {
-                channelCount++;
-            }
-            if (waveform.dataSend != null && waveform.dataSend.length > 0) {
-                channelCount++;
-            }
-            if (waveform.dataSoff != null && waveform.dataSoff.length > 0) {
-                channelCount++;
-            }
-            if (channelCount > 1) {
-                rowContainsFullWaveforms = true;
-                break;
-            }
-        }
-
-        if (rowContainsFullWaveforms) {
-            for (int i = 0; i < waveforms.size(); i++) {
-                WaveformDataEntity waveform = waveforms.get(i);
-                CollectionSessionSummary session = new CollectionSessionSummary();
-                session.sessionKey = waveform.id;
-                session.startTime = waveform.startTime;
-                session.collectionIndex = i + 1;
-                session.waveformCount = 1;
-                sessions.add(session);
-            }
-            return sessions;
-        }
-
-        long currentStartTime = Long.MIN_VALUE;
-        CollectionSessionSummary currentSession = null;
-        for (WaveformDataEntity waveform : waveforms) {
-            if (currentSession == null || waveform.startTime != currentStartTime) {
-                currentStartTime = waveform.startTime;
-                currentSession = new CollectionSessionSummary();
-                currentSession.sessionKey = waveform.startTime;
-                currentSession.startTime = waveform.startTime;
-                currentSession.collectionIndex = sessions.size() + 1;
-                currentSession.waveformCount = 0;
-                sessions.add(currentSession);
-            }
-            currentSession.waveformCount++;
-        }
-        return sessions;
-    }
-
-    private List<WaveformDataEntity> buildWaveforms(long pointId,
-                                                    CollectionParameterEntity parameters,
-                                                    float[] timeAxis,
-                                                    float[] recvValues,
-                                                    float[] sendValues,
-                                                    float[] offValues,
-                                                    long timestamp) {
-        List<WaveformDataEntity> waveforms = new ArrayList<>();
-        waveforms.add(buildWaveform(pointId, 0, "Recv", timeAxis, recvValues, null, null, parameters, timestamp));
-        waveforms.add(buildWaveform(pointId, 1, "Send", timeAxis, null, sendValues, null, parameters, timestamp));
-        waveforms.add(buildWaveform(pointId, 2, "Off", timeAxis, null, null, offValues, parameters, timestamp));
-        return waveforms;
-    }
-
-    private WaveformDataEntity buildWaveform(long pointId,
-                                             int type,
-                                             String note,
-                                             float[] timeAxis,
-                                             float[] recvValues,
-                                             float[] sendValues,
-                                             float[] offValues,
-                                             CollectionParameterEntity parameters,
-                                             long timestamp) {
-        float sendFrequencyHz = resolveSendFrequencyHz(parameters);
-        float recvFrequencyHz = resolveRecvFrequencyHz(parameters);
-        float waveformSampleRateHz = resolveWaveformSampleRateHz(parameters);
-        float[] recvWindowLengths = buildRecvWindowLengths(timeAxis, parameters != null ? parameters.sampleTime : 0f);
-
-        WaveformDataEntity waveform = new WaveformDataEntity();
-        waveform.dataPointId = pointId;
-        waveform.type = type;
-        waveform.note = note;
-        waveform.startTime = timestamp;
-        // 当前表单中的 collectionCount 已对应 Data_Sample.PERIOD（叠加/发送周期）。
-        waveform.period = resolvePeriod(parameters);
-        waveform.dataRecvPos = encodeFloatArray(timeAxis);
-        waveform.dataRecvLen = encodeFloatArray(recvWindowLengths);
-        waveform.dataRecv = recvValues != null ? encodeFloatArray(recvValues) : null;
-        waveform.dataSend = sendValues != null ? encodeFloatArray(sendValues) : null;
-        waveform.dataSoff = offValues != null ? encodeFloatArray(offValues) : null;
-        // 当前表单语义：
-        // transmitCurrent -> SendFs（发送频率）
-        // sampleFrequency -> RecvFs（接收采样频率）
-        // sampleTime(单位 us) -> SampleSendFs / SampleOffFs 的步长换算依据
-        waveform.recvFs = recvFrequencyHz;
-        waveform.sendFs = sendFrequencyHz;
-        waveform.simpleSendFs = waveformSampleRateHz;
-        waveform.simpleOffFs = waveformSampleRateHz;
-        waveform.use = 1;
-        waveform.createdAt = timestamp;
-        return waveform;
-    }
-
-    private int resolvePeriod(CollectionParameterEntity parameters) {
-        if (parameters == null || parameters.collectionCount <= 0) {
-            return 1;
-        }
-        return parameters.collectionCount;
-    }
-
-    private float resolveSendFrequencyHz(CollectionParameterEntity parameters) {
-        if (parameters == null || parameters.transmitCurrent <= 0f) {
-            return 0f;
-        }
-        return parameters.transmitCurrent;
-    }
-
-    private float resolveRecvFrequencyHz(CollectionParameterEntity parameters) {
-        if (parameters == null || parameters.sampleFrequency <= 0) {
-            return 0f;
-        }
-        return parameters.sampleFrequency;
-    }
-
-    private float resolveWaveformSampleRateHz(CollectionParameterEntity parameters) {
-        if (parameters == null) {
-            return 0f;
-        }
-        // sampleTime 约定为 us，数据库中的 SampleSendFs / SampleOffFs 需要的是 Hz。
-        if (parameters.sampleTime > 0f) {
-            return 1_000_000f / parameters.sampleTime;
-        }
-        if (parameters.sampleFrequency > 0) {
-            return parameters.sampleFrequency;
-        }
-        return 0f;
-    }
-
-    private float[] buildRecvWindowLengths(float[] timeAxis, float fallbackSampleTimeUs) {
-        if (timeAxis == null || timeAxis.length == 0) {
-            return new float[0];
-        }
-
-        float[] values = new float[timeAxis.length];
-        if (timeAxis.length == 1) {
-            values[0] = sanitizeWindowLength(fallbackSampleTimeUs, 0f);
-            return values;
-        }
-
-        for (int i = 0; i < timeAxis.length - 1; i++) {
-            float delta = timeAxis[i + 1] - timeAxis[i];
-            values[i] = sanitizeWindowLength(delta, fallbackSampleTimeUs);
-        }
-        values[timeAxis.length - 1] = sanitizeWindowLength(values[timeAxis.length - 2], fallbackSampleTimeUs);
-        return values;
-    }
-
-    private float sanitizeWindowLength(float candidate, float fallback) {
-        if (Float.isFinite(candidate) && candidate > 0f) {
-            return candidate;
-        }
-        if (Float.isFinite(fallback) && fallback > 0f) {
-            return fallback;
-        }
-        return 0f;
-    }
-
-    private byte[] encodeFloatArray(float[] values) {
-        if (values == null || values.length == 0) {
-            return new byte[0];
-        }
-        ByteBuffer buffer = ByteBuffer.allocate(values.length * 8).order(ByteOrder.BIG_ENDIAN);
-        for (float value : values) {
-            buffer.putDouble(value);
-        }
-        return buffer.array();
-    }
-
-    private long requireProjectId() {
-        ProjectEntity project = projectDao.getFirstProject();
-        return project != null ? project.id : 0L;
-    }
-
     private void touchProject(long now) {
         ProjectEntity project = projectDao.getFirstProject();
         if (project != null) {
-            project.updatedAt = now;
+            project.setUpdatedAt(now);
             projectDao.update(project);
         }
     }

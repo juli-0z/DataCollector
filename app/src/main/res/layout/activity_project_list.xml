@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 阅读提示：工程列表页面布局：应用入口，用于新建、导入、打开工程并进入上传/日志等功能。 注释使用简体中文并按 UTF-8 保存，避免 Android Studio 中出现乱码。 -->
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/bg_page_field"
-    tools:context=".ui.ProjectListActivity">
+    tools:context=".ui.project.ProjectListActivity">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/app_bar_layout"

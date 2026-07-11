@@ -1,5 +1,10 @@
 package cn.zjl.datacollector.ui.playback;
 
+/**
+ * 阅读提示：回放列表界面代码：负责展示历史测点并支持逐点查看采集结果。
+ * 本文件中的注释使用简体中文，便于按业务流程阅读代码；修改逻辑时请同步检查相关数据库、界面和同步链路。
+ */
+
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -43,6 +48,14 @@ public class PointListAdapter extends RecyclerView.Adapter<PointListAdapter.View
 
     public void refresh() {
         rebuildVisibleItems();
+    }
+
+    public void clearSelection() {
+        selectedType = -1;
+        selectedNodeId = -1L;
+        selectedPointId = -1L;
+        selectedSessionIndex = -1;
+        notifyDataSetChanged();
     }
 
     public void setSelectedPoint(long pointId) {

@@ -1,5 +1,10 @@
 package cn.zjl.datacollector.ui.playback;
 
+/**
+ * 阅读提示：回放列表界面代码：负责展示历史测点并支持逐点查看采集结果。
+ * 本文件中的注释使用简体中文，便于按业务流程阅读代码；修改逻辑时请同步检查相关数据库、界面和同步链路。
+ */
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,14 +30,14 @@ public class PointListItem {
     public boolean completed;
     public final List<PointListItem> children = new ArrayList<>();
 
-    public static PointListItem createProject(String projectName) {
+    public static PointListItem createProject(long projectId, String projectName, int lineCount) {
         PointListItem item = new PointListItem();
         item.type = TYPE_PROJECT;
-        item.nodeId = -1L;
+        item.nodeId = projectId;
         item.title = projectName;
         item.subtitle = "";
         item.depth = 0;
-        item.hasChildren = true;
+        item.hasChildren = lineCount > 0;
         item.expanded = true;
         return item;
     }

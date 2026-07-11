@@ -1,5 +1,10 @@
 package cn.zjl.datacollector.util;
 
+/**
+ * 阅读提示：通用工具类：封装设置、导出、波形编码等跨模块复用能力。
+ * 本文件中的注释使用简体中文，便于按业务流程阅读代码；修改逻辑时请同步检查相关数据库、界面和同步链路。
+ */
+
 import android.content.Context;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;

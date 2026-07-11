@@ -1,5 +1,10 @@
 package cn.zjl.datacollector.util;
 
+/**
+ * 阅读提示：通用工具类：封装设置、导出、波形编码等跨模块复用能力。
+ * 本文件中的注释使用简体中文，便于按业务流程阅读代码；修改逻辑时请同步检查相关数据库、界面和同步链路。
+ */
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -18,56 +23,56 @@ public final class WaveformCodec {
         if (waveform == null) {
             return new float[0];
         }
-        return decodeBigEndianDouble(waveform.dataRecv);
+        return decodeBigEndianDouble(waveform.getDataRecv());
     }
 
     public static float[] extractSendValues(WaveformDataEntity waveform) {
         if (waveform == null) {
             return new float[0];
         }
-        return decodeBigEndianDouble(waveform.dataSend);
+        return decodeBigEndianDouble(waveform.getDataSend());
     }
 
     public static float[] extractOffValues(WaveformDataEntity waveform) {
         if (waveform == null) {
             return new float[0];
         }
-        return decodeBigEndianDouble(waveform.dataSoff);
+        return decodeBigEndianDouble(waveform.getDataSoff());
     }
 
     public static float[] extractRecvTimeAxis(WaveformDataEntity waveform) {
         if (waveform == null) {
             return new float[0];
         }
-        return decodeBigEndianDouble(waveform.dataRecvPos);
+        return decodeBigEndianDouble(waveform.getDataRecvPos());
     }
 
     public static float[] extractSendTimeAxis(WaveformDataEntity waveform, int valueCount) {
         if (waveform == null || valueCount <= 0) {
             return new float[0];
         }
-        return buildUniformAxis(valueCount, waveform.simpleSendFs);
+        return buildUniformAxis(valueCount, waveform.getSimpleSendFs());
     }
 
     public static float[] extractOffTimeAxis(WaveformDataEntity waveform, int valueCount) {
         if (waveform == null || valueCount <= 0) {
             return new float[0];
         }
-        return buildUniformAxis(valueCount, waveform.simpleOffFs);
+        return buildUniformAxis(valueCount, waveform.getSimpleOffFs());
     }
 
     public static float[] extractRecvWindowLengths(WaveformDataEntity waveform) {
         if (waveform == null) {
             return new float[0];
         }
-        return decodeBigEndianDouble(waveform.dataRecvLen);
+        return decodeBigEndianDouble(waveform.getDataRecvLen());
     }
 
     public static float[] extractValues(WaveformDataEntity waveform) {
         if (waveform == null) {
             return new float[0];
         }
-        switch (waveform.type) {
+        switch (waveform.getType()) {
             case 1:
                 return extractSendValues(waveform);
             case 2:

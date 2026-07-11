@@ -1,9 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 阅读提示：采集页面菜单：提供诊断、日志、上传、质检设置等入口。 注释使用简体中文并按 UTF-8 保存，避免 Android Studio 中出现乱码。 -->
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
         android:id="@+id/action_export_database"
         android:title="@string/menu_export_database"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_quality_check_settings"
+        android:title="@string/menu_quality_check_settings"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_device_diagnostic"
+        android:title="@string/menu_device_diagnostic"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_operation_log_center"
+        android:title="@string/menu_operation_log_center"
         app:showAsAction="never" />
 </menu>

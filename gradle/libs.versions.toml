@@ -8,11 +8,13 @@ material = "1.13.0"
 constraintlayout = "2.2.1"
 navigationFragment = "2.6.0"
 navigationUi = "2.6.0"
-room = "2.6.1"
+room = "2.8.4"
 workmanager = "2.9.0"
 mpandroidchart = "3.1.0"
 retrofit = "2.11.0"
 gson = "2.11.0"
+uiGraphics = "1.11.3"
+kotlin = "2.3.20"
 
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -35,7 +37,8 @@ retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = 
 retrofit-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
 # Gson
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics", version.ref = "uiGraphics" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
