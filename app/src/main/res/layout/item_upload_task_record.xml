@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 阅读提示：上传任务记录列表项布局：展示每次上传执行结果和错误信息。 注释使用简体中文并按 UTF-8 保存，避免 Android Studio 中出现乱码。 -->
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="@dimen/space_md"
+    app:cardBackgroundColor="@color/surface_card">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="@dimen/space_lg">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/text_task_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textColor="@color/text_primary"
+                android:textStyle="bold"
+                tools:text="任务开始于 2026-04-21 10:30" />
+
+            <TextView
+                android:id="@+id/text_task_status_chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_chip_soft"
+                android:paddingStart="@dimen/space_sm"
+                android:paddingTop="@dimen/space_xs"
+                android:paddingEnd="@dimen/space_sm"
+                android:paddingBottom="@dimen/space_xs"
+                android:textColor="@color/blue_primary"
+                android:textStyle="bold"
+                tools:text="成功" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/text_task_meta"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_sm"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp"
+            tools:text="2 个工程 · 待上传 18 个测点 · 成功上传 18 个" />
+
+        <TextView
+            android:id="@+id/text_task_summary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_xs"
+            android:lineSpacingExtra="2dp"
+            android:textColor="@color/text_primary"
+            android:textSize="13sp"
+            tools:text="本次已成功上传 18 个测点" />
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

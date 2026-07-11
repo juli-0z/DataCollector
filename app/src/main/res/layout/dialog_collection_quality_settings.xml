@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 阅读提示：采集质检设置弹窗布局：配置宽松/标准阈值档位和是否拦截保存。 注释使用简体中文并按 UTF-8 保存，避免 Android Studio 中出现乱码。 -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="@dimen/space_md">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/quality_check_settings_hint"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_md"
+            android:text="@string/label_quality_check_profile"
+            android:textColor="@color/text_primary"
+            android:textStyle="bold" />
+
+        <RadioGroup
+            android:id="@+id/radio_group_quality_profile"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_sm">
+
+            <RadioButton
+                android:id="@+id/radio_quality_profile_standard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/quality_check_profile_standard" />
+
+            <RadioButton
+                android:id="@+id/radio_quality_profile_relaxed"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/quality_check_profile_relaxed" />
+        </RadioGroup>
+
+        <TextView
+            android:id="@+id/text_quality_profile_summary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_sm"
+            android:background="@drawable/bg_chip_soft"
+            android:padding="@dimen/space_sm"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/checkbox_quality_check_block_save"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_md"
+            android:text="@string/label_quality_check_block_save" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/space_md"
+            android:text="@string/quality_check_settings_footer"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp" />
+    </LinearLayout>
+</ScrollView>

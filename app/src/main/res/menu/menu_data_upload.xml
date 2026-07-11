@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 阅读提示：上传页面菜单：提供刷新、日志等上传辅助入口。 注释使用简体中文并按 UTF-8 保存，避免 Android Studio 中出现乱码。 -->
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_operation_log_center"
+        android:title="@string/menu_operation_log_center"
+        app:showAsAction="never" />
+</menu>
